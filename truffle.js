@@ -17,7 +17,7 @@ module.exports = {
   // to customize your Truffle configuration!
   networks: {
     development: {
-      host: "localhost",
+      host: "192.168.139.141",
       port: 8545,
       gas: 3000000,
       gasvalue: 1,
