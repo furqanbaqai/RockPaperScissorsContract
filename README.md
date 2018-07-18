@@ -1,0 +1,2 @@
+# RockPaperScissorsContract
+Sample solidity implementation
