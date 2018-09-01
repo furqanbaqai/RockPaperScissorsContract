@@ -159,6 +159,16 @@ contract RockPaperScissors is Pausable{
     return true;
   }
 
+  function hashHelper(address _receiver, bytes32 _secret, uint _move, uint _gameID) public view returns(bytes32 puzzle){
+    require(_move != 0);
+    require(_move <= 3);
+    return keccak256(abi.encodePacked(this,_receiver,_secret,_gameID,_move));
+  }
+  
+  function hashComparer(bytes32 _secret, uint _gameID, bytes32 _origHash) public view returns(uint move){
+      bytes32 oututput =  keccak256(abi.encodePacked(this,msg.sender,_secret,_gameID));
+      return 0;
+  }
 
   /** Following code can be converted into a another contract following Hub/Spoke model */
   /** Data Structure related to Funds */  
