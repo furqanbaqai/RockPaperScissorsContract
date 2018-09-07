@@ -229,9 +229,6 @@ contract RockPaperScissors is Pausable{
     return keccak256(abi.encodePacked(this,_receiver,_secret,_gameID,_move));
   }
   
-  function hashComparer(bytes32 _secret, uint _gameID, uint _moveID) public view returns(bytes32 generatedHash){
-      return hashHelper(msg.sender,_secret,_moveID,_gameID);
-  }
   
   /**
   *  Funtion Not required any-more and will be removed in next iteration
