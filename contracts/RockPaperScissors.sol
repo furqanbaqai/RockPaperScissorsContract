@@ -38,8 +38,7 @@ contract RockPaperScissors is Pausable{
   event LogPlayer2JoinGame(address indexed playerAddress, uint gameID, uint betAmount );
   event LogSubmitMove(address indexed playerAddress, uint _gameID, bytes32 _moveHash );
   event LogCheckWinner(address indexed calleAddress, uint _gameID, address winner, uint wonAmount, uint amountReturned);  
-  event LogRevealMove(address indexed playerAddress, uint indexed _gameID, bytes32 _secret, uint _moveID);
-  event LogDebug(bytes32 genrated, bytes32 orignal);
+  event LogRevealMove(address indexed playerAddress, uint indexed _gameID, bytes32 _secret, uint _moveID);  
   
   /**
    * TODO! Modifier will be changed to CHECK if player have deposited credit 
