@@ -44,8 +44,8 @@ contract RockPaperScissors is Pausable{
   /** End */
   
 
-  event LogPlayer1CreateNewGame(address indexed playerAddress, uint betAmount, uint gameID );
-  event LogPlayer2JoinGame(address indexed playerAddress, uint gameID, uint betAmount );
+  event LogPlayer1CreateNewGame(address indexed playerAddress, uint betAmount, uint gameID,bytes32 _moveHash );
+  event LogPlayer2JoinGame(address indexed playerAddress, uint gameID, uint betAmount, bytes32 _moveHash );
   event LogSubmitMove(address indexed playerAddress, uint _gameID, bytes32 _moveHash );
   event LogCheckWinner(address indexed calleAddress, uint _gameID, address winner, uint wonAmount, uint amountReturned);  
   event LogRevealMove(address indexed playerAddress, uint indexed _gameID, bytes32 _secret, uint _moveID);  
@@ -63,14 +63,18 @@ contract RockPaperScissors is Pausable{
    * @dev Function for creating new game and beting amount
    * Function Code: [CG]
    * @param _gameID Game ID to be created on-chain
+   * @param _moveHash Move's hash
    */
-  function player1CreateNewGameAndBet(uint _gameID/*, uint _betAmount*/) whenNotPaused  payable public returns(bool success){
+  function player1CreateNewGameAndBet(uint _gameID,bytes32 _moveHash) whenNotPaused  payable public returns(bool success){
     require(msg.value > 0, "[DF001] Invalid Message Value"); 
     require(games[_gameID].p1Bet == 0, "[DF002] Game with same ID already used");
     require(games[_gameID].player1 == address(0), "[DF002] Game with same ID already used");
+    require(_moveHash != bytes32(0),"[DF003] Invalid move hash");
+    
     games[_gameID].player1 = msg.sender;
     games[_gameID].p1Bet = games[_gameID].p1Bet.add(msg.value);
-    emit LogPlayer1CreateNewGame(msg.sender,msg.value, _gameID);
+    games[_gameID].p1MoveHash = _moveHash;
+    emit LogPlayer1CreateNewGame(msg.sender,msg.value, _gameID, _moveHash);
     return true;
   }
 
@@ -81,20 +85,15 @@ contract RockPaperScissors is Pausable{
    * This function will be used in two ways:   
    * @param _gameID ID of the game to join
    */
-  function player2JoinGameAndBet(uint _gameID /*, uint _betAmount */) whenNotPaused gameNotForfeited(_gameID) payable public returns(bool success){
-    // require(_betAmount >0, "[JG001] Invalid values" );  /* Not Required! Will be removed in next iteraton */
-    // require(fundsStore[msg.sender].amount >= _betAmount, "[JG002] Should deposit funds before playing");
+  function player2JoinGameAndBet(uint _gameID , bytes32 _moveHash) whenNotPaused gameNotForfeited(_gameID) payable public returns(bool success){
     require(games[_gameID].player1 != address(0), "[JG003] Game does not exist");
     require(games[_gameID].player2 == address(0), "[JG004] Player already part of the game"); 
-    require(games[_gameID].p1Bet == msg.value, "[JG003] Bet amount should match with player1's");// Check if player 2 bet matches player 1
-    
-    if(games[_gameID].player1 != msg.sender){
-        games[_gameID].player2 = msg.sender;
-        games[_gameID].p2Bet = games[_gameID].p2Bet.add(msg.value); // Suppoused to be 0  
-    }else{
-        games[_gameID].p1Bet = games[_gameID].p1Bet.add(msg.value); 
-    } 
-    emit LogPlayer2JoinGame(msg.sender,_gameID,msg.value);    
+    require(games[_gameID].player1 != msg.sender, "[JG005] You are already player1");    
+    require(games[_gameID].p2Bet == msg.value, "[JG006] Bet amount should match with player1's");// Check if player 2 bet matches player 1
+    require(_moveHash != bytes32(0), "[JG007] Invalid move hash");
+    games[_gameID].p2Bet = msg.value; 
+    games[_gameID].p2MoveHash = _moveHash;
+    emit LogPlayer2JoinGame(msg.sender,_gameID,msg.value,_moveHash);    
     return true;
   }
 
@@ -249,11 +248,9 @@ contract RockPaperScissors is Pausable{
    */
   function player1ForfeitGame(uint _gameID) public returns(bool success){
     require(games[_gameID].player1 == msg.sender, "[P1FT] Player 1 can only forfit the game" );
-    require(games[_gameID].p2MoveID == Moves(0), "[P1FT] Too late. Player2 have played his move.");
-    require(games[_gameID].p2MoveHash == bytes32(0), "[P1FT] Too late. Player 2 already played his/her move");
     // Do the accounting entries
     uint p1Bet = games[_gameID].p1Bet;
-    fundsStore[games[_gameID].player1].amount = fundsStore[games[_gameID].player1].amount.add(games[_gameID].p1Bet);
+    fundsStore[games[_gameID].player1].amount = fundsStore[games[_gameID].player1].amount.add(p1Bet);
     games[_gameID].p1Bet = 0;
     games[_gameID].forFitted = true;
     // Emit event
@@ -269,11 +266,9 @@ contract RockPaperScissors is Pausable{
    */
   function player2ForfeitGame(uint _gameID) public returns(bool success){
     require(games[_gameID].player2 == msg.sender, "[P2FT] Player 2 can only forfit the game" );
-    require(games[_gameID].p1MoveID == Moves(0), "[P2FT] Too late. Player2 have played his move.");
-    require(games[_gameID].p1MoveHash == bytes32(0), "[P2FT] Too late. Player 2 already played his/her move");
     // Do the accounting entries
     uint p2Bet = games[_gameID].p2Bet;
-    fundsStore[games[_gameID].player2].amount = fundsStore[games[_gameID].player2].amount.add(games[_gameID].p2Bet);
+    fundsStore[games[_gameID].player2].amount = fundsStore[games[_gameID].player2].amount.add(p2Bet);
     games[_gameID].p2Bet = 0;
     games[_gameID].forFitted = true;
     // Emit event
@@ -294,6 +289,8 @@ contract RockPaperScissors is Pausable{
         games[_gameID].p1Bet = games[_gameID].p1Bet.add(msg.value);
     }else if(msg.sender == games[_gameID].player2){
         games[_gameID].p2Bet = games[_gameID].p2Bet.add(msg.value);
+    }else{
+        revert("Invalid sender.");
     }
     emit LogDepositFunds(msg.sender,msg.value);
     return true;
